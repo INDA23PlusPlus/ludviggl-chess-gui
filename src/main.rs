@@ -336,8 +336,6 @@ impl ggez::event::EventHandler<ggez::GameError> for State {
             return Ok(())
         }
 
-        println!("Input state: {:?}", self.input_state);
-
         let square = self.square_from_pos(ctx, x, y);
         
         if let Some(pos) = validate(square) {
@@ -358,8 +356,6 @@ impl ggez::event::EventHandler<ggez::GameError> for State {
 
                     let from_str = square_str(from);
                     let to_str = square_str(pos);
-
-                    println!("Move: {} -> {}", from_str, to_str);
 
                     game.input_move(
                         from_str,
