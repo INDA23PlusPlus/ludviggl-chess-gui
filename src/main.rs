@@ -5,7 +5,6 @@ extern crate lazy_static;
 
 use ggez;
 use chess;
-use log;
 use ggez::glam;
 use std::sync::{ Mutex, Arc };
 
