@@ -1,0 +1,11 @@
+debug/
+target/
+Cargo.lock
+**/*.rs.bk
+.local.vimrc
+
+assets/board.png
+assets/numbers.png
+assets/sprites.png
+assets/text.png
+assets/bg.png

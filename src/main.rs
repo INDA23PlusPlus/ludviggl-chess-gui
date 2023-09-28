@@ -4,7 +4,7 @@
 extern crate lazy_static;
 
 use ggez;
-use chess;
+use simonsev_chess as chess;
 use ggez::glam;
 use std::sync::{ Mutex, Arc };
 
@@ -33,6 +33,7 @@ enum InputState {
     PieceSelect,
     MoveSelect { from: (u8, u8), },
     CheckMate,
+    Promotion { selection_index: usize, },
 }
 
 fn validate(square: (i32, i32)) -> Option<(u8, u8)> {
@@ -66,6 +67,7 @@ struct State {
     black_img: Images,
 }
 
+// STATE
 impl State {
 
     pub fn new(ctx: &mut ggez::Context) -> ggez::GameResult<State> {
@@ -135,7 +137,12 @@ impl State {
         p -= glam::Vec2::splat(BOARD_OFFSET as f32);
         p /= SQUARE_OFFSET as f32;
         p = glam::Vec2::new(p.y, p.x); // Rotate board
-        (p.x as i32, p.y as i32)
+
+        if p.x < 0.0 || p.y < 0.0 {
+            (-1, -1)
+        } else {
+            (p.x as i32, p.y as i32)
+        }
     }
 
     fn piece_transform(
@@ -191,8 +198,65 @@ impl State {
                 .dest(origin + offset)
         );
     }
+
+    fn draw_promotion(
+        &self,
+        ctx: &mut ggez::Context,
+        canvas: &mut ggez::graphics::Canvas
+    ) {
+
+        let mut prefixes: &mut [&str] = &mut [" "; 4];
+        
+        if let InputState::Promotion { selection_index } = self.input_state {
+            
+            prefixes[selection_index] = "*";
+            let text = format!(
+            "Select promotion:\n{} Rook\n{} Knight\n{} Bishop\n{} Queen",
+            prefixes[0], prefixes[1],
+            prefixes[2], prefixes[3]
+            ); 
+
+            self.draw_text(ctx, canvas, text);
+        }
+    }
+
+    fn draw_text(
+        &self,
+        ctx: &mut ggez::Context,
+        canvas: &mut ggez::graphics::Canvas,
+        text: String
+    ) {
+        
+        let (x, y) = ctx.gfx.drawable_size();
+        let c = glam::Vec2::new(x, y) / 2.0;
+
+        use ggez::graphics::*;
+
+        let rect = Mesh::new_rectangle(
+            ctx,
+            DrawMode::Fill(FillOptions::DEFAULT),
+            Rect::new(0.0, 0.0, x, y),
+            Color::from([0.3, 0.3, 0.9, 0.9])
+        ).unwrap();
+
+        canvas.draw(
+            &rect,
+            DrawParam::new()
+        );
+
+        canvas.draw(
+            Text::new(text)
+                .set_font("Handjet")
+                .set_layout(TextLayout::center())
+                .set_scale(80.),
+            DrawParam::new()
+                .color(Color::from([0.9, 0.4, 0.4, 1.0]))
+                .dest(c)
+        );
+    }
 }
 
+// EVENT HANDLER
 impl ggez::event::EventHandler<ggez::GameError> for State {
 
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
@@ -203,10 +267,16 @@ impl ggez::event::EventHandler<ggez::GameError> for State {
 
         let game = GAME.lock().unwrap();
 
+        let bgd_hex = 0x057137;
+
         // Fill background
         let mut canvas = ggez::graphics::Canvas::from_frame(
             ctx,
-            ggez::graphics::Color::from([0.1, 0.3, 0.2, 1.0])
+            ggez::graphics::Color::from_rgb(
+                (((bgd_hex & 0xff0000) >> 16) & 0xff) as u8,
+                (((bgd_hex & 0x00ff00) >>  8) & 0xff) as u8,
+                (((bgd_hex & 0x0000ff) >>  0) & 0xff) as u8,
+            )
         );
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
@@ -268,23 +338,18 @@ impl ggez::event::EventHandler<ggez::GameError> for State {
         if let InputState::CheckMate = self.input_state {
 
             let player_str = if game.white_turn {
-                "Black"
-            } else {
                 "White"
+            } else {
+                "Black"
             };
 
-            let (x, y) = ctx.gfx.drawable_size();
-            let c = glam::Vec2::new(x, y) / 2.0;
 
-            canvas.draw(
-                ggez::graphics::Text::new(format!("{} won!\nPress R to reset", player_str))
-                    .set_font("Handjet")
-                    .set_layout(ggez::graphics::TextLayout::center())
-                    .set_scale(80.),
-                ggez::graphics::DrawParam::new()
-                    .color(ggez::graphics::Color::from([0.9, 0.4, 0.4, 1.0]))
-                    .dest(c)
-            );
+            self.draw_text(ctx, &mut canvas, format!("{} won!\nPress R to reset", player_str));
+        }
+
+        if let InputState::Promotion { .. } = self.input_state {
+            
+            self.draw_promotion(ctx, &mut canvas);
         }
         
         canvas.finish(ctx);
@@ -310,7 +375,29 @@ impl ggez::event::EventHandler<ggez::GameError> for State {
                 KeyCode::Escape => {
                     ctx.request_quit();
                 },
-                _ => (),
+                KeyCode::P => self.input_state = InputState::Promotion { selection_index: 0 },
+
+                _ => match &mut self.input_state {
+
+                    InputState::Promotion { selection_index, } => {
+
+                        match keycode {
+                            KeyCode::Up => {
+                                if *selection_index > 0 {
+                                    *selection_index -= 1;
+                                }
+                            },
+                            KeyCode::Down => {
+                                if *selection_index < 3 {
+                                    *selection_index += 1;
+                                }
+                            },
+                            _ => (),
+                        }
+                    }, 
+                    _ => (),
+                },
+                
             }
         }
 
@@ -382,6 +469,8 @@ fn main() {
     let mut c = ggez::conf::Conf::new();
     
     c.backend = ggez::conf::Backend::Gl;
+    c.window_mode.fullscreen_type(ggez::conf::FullscreenType::True);
+
 
     let (mut ctx, event_loop) = ggez::ContextBuilder::new("Chess", "Ludvig Gunne Lindström")
         .default_conf(c)
