@@ -74,22 +74,61 @@ impl State {
 
         Ok(Self {
             input_state: InputState::PieceSelect,
-            board_img: ggez::graphics::Image::from_path(ctx, "/board_alt.png").unwrap(),
+            board_img: ggez::graphics::Image::from_path(
+                ctx,
+                "/board_alt.png"
+            ).unwrap(),
             white_img: Images {
-                pawn:   ggez::graphics::Image::from_path(ctx, "/white_pawn.png").unwrap(),
-                rook:   ggez::graphics::Image::from_path(ctx, "/white_rook.png").unwrap(),
-                knight: ggez::graphics::Image::from_path(ctx, "/white_knight.png").unwrap(),
-                bishop: ggez::graphics::Image::from_path(ctx, "/white_bishop.png").unwrap(),
-                queen:  ggez::graphics::Image::from_path(ctx, "/white_queen.png").unwrap(),
-                king:   ggez::graphics::Image::from_path(ctx, "/white_king.png").unwrap(),
+                pawn:   ggez::graphics::Image::from_path(
+                    ctx,
+                    "/white_pawn.png"
+                ).unwrap(),
+                rook:   ggez::graphics::Image::from_path(
+                    ctx,
+                    "/white_rook.png"
+                ).unwrap(),
+                knight: ggez::graphics::Image::from_path(
+                    ctx,
+                    "/white_knight.png"
+                ).unwrap(),
+                bishop: ggez::graphics::Image::from_path(
+                    ctx,
+                    "/white_bishop.png"
+                ).unwrap(),
+                queen:  ggez::graphics::Image::from_path(
+                    ctx,
+                    "/white_queen.png"
+                ).unwrap(),
+                king:   ggez::graphics::Image::from_path(
+                    ctx,
+                    "/white_king.png"
+                ).unwrap(),
             },
             black_img: Images {
-                pawn:   ggez::graphics::Image::from_path(ctx, "/black_pawn.png").unwrap(),
-                rook:   ggez::graphics::Image::from_path(ctx, "/black_rook.png").unwrap(),
-                knight: ggez::graphics::Image::from_path(ctx, "/black_knight.png").unwrap(),
-                bishop: ggez::graphics::Image::from_path(ctx, "/black_bishop.png").unwrap(),
-                queen:  ggez::graphics::Image::from_path(ctx, "/black_queen.png").unwrap(),
-                king:   ggez::graphics::Image::from_path(ctx, "/black_king.png").unwrap(),
+                pawn:   ggez::graphics::Image::from_path(
+                    ctx,
+                    "/black_pawn.png"
+                ).unwrap(),
+                rook:   ggez::graphics::Image::from_path(
+                    ctx,
+                    "/black_rook.png"
+                ).unwrap(),
+                knight: ggez::graphics::Image::from_path(
+                    ctx,
+                    "/black_knight.png"
+                ).unwrap(),
+                bishop: ggez::graphics::Image::from_path(
+                    ctx,
+                    "/black_bishop.png"
+                ).unwrap(),
+                queen:  ggez::graphics::Image::from_path(
+                    ctx,
+                    "/black_queen.png"
+                ).unwrap(),
+                king:   ggez::graphics::Image::from_path(
+                    ctx,
+                    "/black_king.png"
+                ).unwrap(),
             },
         })
     }
