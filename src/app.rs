@@ -1,10 +1,7 @@
 
-use crate::{ State, Board, };
+use crate::logic;
 
-pub trait AppInterface {
+pub fn run(layer: logic::Layer) {
 
-    fn get_board(&self) -> Board;
-    fn get_state(&self) -> State;
+
 }
-
-pub type App = Box<dyn AppInterface>;

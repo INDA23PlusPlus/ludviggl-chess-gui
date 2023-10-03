@@ -1,50 +1,43 @@
 
-use crate::app::{ App, AppInterface, };
-use crate::{ Board, State };
+use simonsev_chess::{ self, Game, };
+use chess_network_protocol::{
+    ServerToClient as Stc,
+    ClientToServer as Cts,
+    ServerToClientHandshake as StcHandshake,
+    ClientToServerHandshake as CtsHandshake,
+    self as protocol,
+};
+
+use crate::logic;
+use crate::tcp_thread::{ 
+    TcpThread,
+    write as tcp_write,
+    read as tcp_read,
+};
+
 use std::net::{ TcpListener, TcpStream, };
-use std::thread::JoinHandle;
-use std::sync::Mutex;
-use simonsev_chess;
 
-struct Server {
+pub struct Server {
 
-    thread: JoinHandle<()>,
-    game: Mutex<simonsev_chess::Game>, 
+    game: Game,
+    tcp_thread: TcpThread<Cts, Stc>,
 }
 
 impl Server {
 
-    pub fn new(port: String) -> App {
+    pub fn new(port: String) -> logic::Layer {
 
         let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
         let (stream, _) = listener.accept().unwrap();
 
-        let game = Mutex::new(simonsev_chess::Game::new());
+        // TODO: Handshake
 
-        let thread = std::thread::spawn(
-            move || Self::thread_fn(stream, &game)
-        );
+        Self {
 
-        Box::new(Self { thread, game, })
+            game: Game::new(),
+            tcp_thread: TcpThread::new(stream),
+        }
     }
 
-    fn thread_fn(stream: TcpStream, game: &Mutex<simonsev_chess::Game>) {
-
-    }
-}
-
-impl AppInterface for Server {
-
-    fn get_board(&self) -> Board {
-
-        // Here we actually convert the backend representation to the 
-        // board defined by protocol
-        unimplemented!();
-    }
-
-    fn get_state(&self) -> State {
-
-        // Here we calculate the state depending on the backend
-        unimplemented!();
-    }
+    fn board_conv() -> protocol::
 }
