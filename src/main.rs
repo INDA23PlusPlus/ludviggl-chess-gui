@@ -3,9 +3,7 @@ mod server;
 mod client;
 mod logic;
 mod app;
-mod ui;
 mod tcp_handler;
-mod start_with;
 
 use server::Server;
 use client::Client;

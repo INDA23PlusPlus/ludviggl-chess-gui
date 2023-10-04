@@ -10,11 +10,8 @@ use chess_network_protocol::{
 
 use crate::logic;
 use crate::tcp_handler::{ self as tcp, TcpHandler, };
-use crate::start_with::StartWith;
 
 use std::net::TcpListener;
-use std::thread::sleep;
-use std::time::Duration;
 
 type ThreadResult = ();
 
@@ -58,14 +55,12 @@ impl Server {
         println!("Waiting for client handshake...");
         let ctshand: CtsHand = tcp::read(&mut stream);
         println!("Client wants you to play as {:?}", ctshand.server_color);
-        let (start_with, state, player) = match ctshand.server_color {
+        let (state, player) = match ctshand.server_color {
             protocol::Color::White => (
-                StartWith::Write,
                 logic::State::SelectPiece,
                 logic::Player::White,
             ),
             protocol::Color::Black => (
-                StartWith::Read,
                 logic::State::OpponentTurn,
                 logic::Player::Black,
             ),
