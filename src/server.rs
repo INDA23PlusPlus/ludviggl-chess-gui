@@ -1,43 +1,288 @@
 
-use simonsev_chess::{ self, Game, };
+use simonsev_chess as backend;
 use chess_network_protocol::{
-    ServerToClient as Stc,
-    ClientToServer as Cts,
-    ServerToClientHandshake as StcHandshake,
-    ClientToServerHandshake as CtsHandshake,
     self as protocol,
+    ClientToServer as Cts,
+    ServerToClient as Stc,
+    ClientToServerHandshake as CtsHand,
+    ServerToClientHandshake as StcHand,
 };
 
 use crate::logic;
-use crate::tcp_thread::{ 
-    TcpThread,
-    write as tcp_write,
-    read as tcp_read,
-};
+use crate::tcp_handler::{ self as tcp, TcpHandler, };
+use crate::start_with::StartWith;
 
 use std::net::{ TcpListener, TcpStream, };
 
+type ThreadResult = ();
+
+fn sqstr(x: usize, y: usize) -> String {
+
+    let a = match x {
+        0 => "A",
+        1 => "B",
+        2 => "C",
+        3 => "D",
+        4 => "E",
+        5 => "F",
+        6 => "G",
+        7 => "H",
+        _ => panic!(),
+    };
+
+    format!("{}{}", a, y + 1)
+}
+
 pub struct Server {
 
-    game: Game,
-    tcp_thread: TcpThread<Cts, Stc>,
+    game: backend::Game,
+    tcp_handler: TcpHandler<Cts, Stc>,
+    state: logic::State,
+    player: logic::Player,
 }
 
 impl Server {
 
     pub fn new(port: String) -> logic::Layer {
 
+        print!("Waiting for opponent to connect...");
         let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
-        let (stream, _) = listener.accept().unwrap();
+        let (mut stream, addr) = listener.accept().unwrap();
+        println!(" connected! ({})", addr);
 
-        // TODO: Handshake
+        let game = backend::Game::new();
 
-        Self {
+        // Receive handshake
+        let ctshand: CtsHand = tcp::read(&mut stream);
+        let (start_with, state, player) = match ctshand.server_color {
+            protocol::Color::White => (
+                StartWith::Write,
+                logic::State::SelectPiece,
+                logic::Player::White,
+            ),
+            protocol::Color::Black => (
+                StartWith::Read,
+                logic::State::OpponentTurn,
+                logic::Player::Black,
+            ),
+        };
+        
+        // Send handshake
+        let mut stchand = StcHand {
 
-            game: Game::new(),
-            tcp_thread: TcpThread::new(stream),
+            board: Self::convert_board(&game),
+            moves: Vec::new(),
+            joever: protocol::Joever::Ongoing,
+            features: Vec::new(),
+        };
+
+        tcp::write(&mut stream, stchand);
+        println!("Handshake completed");
+        
+        let tcp_handler = TcpHandler::new(stream);
+
+        Box::new(Self {
+            game,
+            tcp_handler,
+            state,
+            player,
+        })
+    }
+
+    fn convert_board(game: &backend::Game) -> [[protocol::Piece; 8]; 8] {
+
+        let mut target = [[protocol::Piece::None; 8]; 8];
+
+        for (backend_row, target_row) 
+            in std::iter::zip(game.get_board(), &mut target) 
+        {
+            for (backend_square, target_square) 
+                in std::iter::zip(backend_row, target_row)
+            {
+                *target_square = if backend_square.occupied {
+                    match (
+                        backend_square.piece.piece_type,
+                        backend_square.piece.white,
+                        ) {
+
+                        (backend::PieceType::Pawn,   true) => protocol::Piece::WhitePawn,
+                        (backend::PieceType::Rook,   true) => protocol::Piece::WhiteRook,
+                        (backend::PieceType::Knight, true) => protocol::Piece::WhiteKnight,
+                        (backend::PieceType::Bishop, true) => protocol::Piece::WhiteBishop,
+                        (backend::PieceType::Queen,  true) => protocol::Piece::WhiteQueen,
+                        (backend::PieceType::King,   true) => protocol::Piece::WhiteKing,
+                        
+                        (backend::PieceType::Pawn,   false) => protocol::Piece::BlackPawn,
+                        (backend::PieceType::Rook,   false) => protocol::Piece::BlackRook,
+                        (backend::PieceType::Knight, false) => protocol::Piece::BlackKnight,
+                        (backend::PieceType::Bishop, false) => protocol::Piece::BlackBishop,
+                        (backend::PieceType::Queen,  false) => protocol::Piece::BlackQueen,
+                        (backend::PieceType::King,   false) => protocol::Piece::BlackKing,
+
+                        _ => panic!(),
+                    }
+                } else { protocol::Piece::None };
+            }
+        }
+
+        target
+    }
+}
+
+impl logic::Interface for Server {
+    
+    fn get_state(&self) -> logic::State {
+
+        self.state
+    }
+
+    fn get_piece_at(&self, x: u8, y: u8) -> Option<(logic::Piece, logic::Player)> {
+
+        let square = &self.game.get_board()[x as usize][y as usize];
+        if square.occupied {
+            
+            // Convert piece
+            let piece = &square.piece;
+            let piece_type = match piece.piece_type {
+                backend::PieceType::Pawn       => logic::Piece::Pawn,
+                backend::PieceType::Rook       => logic::Piece::Rook,
+                backend::PieceType::Knight     => logic::Piece::Knight,
+                backend::PieceType::Bishop     => logic::Piece::Bishop,
+                backend::PieceType::Queen      => logic::Piece::Queen,
+                backend::PieceType::King       => logic::Piece::King,
+                backend::PieceType::Unoccupied => panic!(),
+            };
+
+            let player = if piece.white {
+                logic::Player::White
+            } else {
+                logic::Player::Black
+            };
+            
+            Some((piece_type, player))
+        } else { None }
+    }
+
+    fn select_piece(&mut self, at: (u8, u8)) {
+        
+        if !matches!(self.state, logic::State::SelectPiece) {
+            return;
+        }
+
+        let square = &self.game.get_board()[at.0 as usize][at.1 as usize];
+
+        if !square.occupied {
+            return;
+        }
+
+        if square.piece.white != matches!(self.player, logic::Player::White) {
+            return;
+        }
+
+        self.state = logic::State::SelectMove { from: at, };
+    }
+    
+    fn update(&mut self) {
+        
+        match self.state {
+            logic::State::OpponentTurn => {
+                
+                match self.tcp_handler.read() {
+                    None => (),
+                    Some(cts) => match cts {
+                        Cts::Move(mov) => {
+
+                            let from = sqstr(mov.start_x, mov.start_y);
+                            let to = sqstr(mov.end_x, mov.end_y);
+                            self.game.input_move(from, to);
+                            let valid = self.game.check_move_valid();
+                            self.game = self.game.clone().do_turn();
+
+                            // Move is valid if move_from is non-empty
+                            let joever = if self.game.mate {
+                                // Client check-mated server
+                                match self.player {
+                                    logic::Player::White => protocol::Joever::Black,
+                                    logic::Player::Black => protocol::Joever::White,
+                                }
+                            } else {
+                                protocol::Joever::Ongoing
+                            };
+                            
+                            if valid && matches!(mov.promotion, protocol::Piece::None) {
+
+                                let stc = Stc::State {
+                                    board: Self::convert_board(&self.game),
+                                    moves: Vec::new(),
+                                    move_made: mov,
+                                    joever,
+                                };
+
+                                self.tcp_handler.write(stc);
+                                self.state = logic::State::SelectPiece;
+                            } else {
+
+                                let stc = Stc::Error {
+                                    board: Self::convert_board(&self.game),
+                                    moves: Vec::new(),
+                                    message: "".to_string(),
+                                    joever,
+                                };
+                                self.tcp_handler.write(stc);
+                            }
+                        },
+                        m => panic!("Unimplemented client message: {:?}", m),
+                    },
+                }
+            }
+            _ => (),
         }
     }
 
-    fn board_conv() -> protocol::
+    fn play_move(&mut self, dst: (u8, u8)) {
+
+        let from = match self.state {
+            logic::State::SelectMove { from } => from,
+            _ => return,
+        };
+
+        let from_str = sqstr(from.0 as usize, from.1 as usize);
+        let to_str = sqstr(dst.0 as usize, dst.1 as usize);
+        self.game.input_move(from_str, to_str);
+        let valid = self.game.check_move_valid();
+        self.game = self.game.clone().do_turn();
+
+        if valid {
+
+            let joever = if self.game.mate {
+                match self.player {
+                    logic::Player::White => protocol::Joever::White,
+                    logic::Player::Black => protocol::Joever::Black,
+                }
+            } else {
+                protocol::Joever::Ongoing
+            };
+
+            let stc = Stc::State {
+
+                board: Self::convert_board(&self.game),
+                moves: Vec::new(),
+                joever,
+                move_made: protocol::Move {
+                    start_x: from.0 as usize,
+                    start_y: from.1 as usize,
+                    end_x: dst.0 as usize,
+                    end_y: dst.1 as usize,
+                    // Promotions not supported
+                    promotion: protocol::Piece::None,
+                }
+            };
+
+
+            self.state = logic::State::OpponentTurn;
+            self.tcp_handler.write(stc);
+        } else {
+            self.state = logic::State::SelectPiece;
+        }
+    }
 }

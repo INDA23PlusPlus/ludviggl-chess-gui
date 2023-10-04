@@ -4,13 +4,11 @@ mod client;
 mod logic;
 mod app;
 mod ui;
-mod tcp_thread;
+mod tcp_handler;
+mod start_with;
 
 use server::Server;
 use client::Client;
-use logic;
-use ui;
-use app;
 use std::env;
 use std::process;
 
@@ -19,7 +17,7 @@ const PORT: &str = "8384";
 fn main() {
 
     let args: Vec<_> = env::args().collect();
-    let name = args[0];
+    let name = args[0].clone();
 
     let layer = match args.len() {
 
