@@ -12,7 +12,9 @@ use crate::logic;
 use crate::tcp_handler::{ self as tcp, TcpHandler, };
 use crate::start_with::StartWith;
 
-use std::net::{ TcpListener, TcpStream, };
+use std::net::TcpListener;
+use std::thread::sleep;
+use std::time::Duration;
 
 type ThreadResult = ();
 
@@ -45,15 +47,17 @@ impl Server {
 
     pub fn new(port: String) -> logic::Layer {
 
-        print!("Waiting for opponent to connect...");
+        println!("Waiting for opponent to connect...");
         let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
         let (mut stream, addr) = listener.accept().unwrap();
-        println!(" connected! ({})", addr);
+        println!("Connected! ({})", addr);
 
         let game = backend::Game::new();
 
         // Receive handshake
+        println!("Waiting for client handshake...");
         let ctshand: CtsHand = tcp::read(&mut stream);
+        println!("Client wants you to play as {:?}", ctshand.server_color);
         let (start_with, state, player) = match ctshand.server_color {
             protocol::Color::White => (
                 StartWith::Write,
@@ -76,8 +80,9 @@ impl Server {
             features: Vec::new(),
         };
 
+        println!("Sending handshake");
         tcp::write(&mut stream, stchand);
-        println!("Handshake completed");
+        println!("Handshake complete!");
         
         let tcp_handler = TcpHandler::new(stream);
 

@@ -14,7 +14,8 @@ pub fn write<T: Message>(stream: &TcpStream, msg: T) {
 
 pub fn read<T: Message>(stream: &TcpStream) -> T {
 
-    serde_json::from_reader(stream).unwrap()
+    let mut de = serde_json::Deserializer::from_reader(stream);
+    T::deserialize(&mut de).unwrap()
 }
 
 type ThreadResult = ();

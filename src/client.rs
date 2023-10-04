@@ -30,8 +30,10 @@ impl Client {
         let ctsh = CtsHand {
             server_color: protocol::Color::Black,
         };
+        println!("Sending handshake");
         tcp::write(&stream, ctsh);
 
+        println!("Waiting for server handshake");
         let stch: StcHand = tcp::read(&stream);
         println!("Handshake complete!");
         
