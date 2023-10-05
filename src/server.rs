@@ -17,7 +17,7 @@ type ThreadResult = ();
 
 fn sqstr(x: usize, y: usize) -> String {
 
-    let a = match x {
+    let a = match y {
         0 => "A",
         1 => "B",
         2 => "C",
@@ -29,7 +29,7 @@ fn sqstr(x: usize, y: usize) -> String {
         _ => panic!(),
     };
 
-    format!("{}{}", a, y + 1)
+    format!("{}{}", a, x + 1)
 }
 
 pub struct Server {
