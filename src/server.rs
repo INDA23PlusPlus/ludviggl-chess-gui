@@ -210,9 +210,8 @@ impl logic::Interface for Server {
                             println!("Opponent wants to move {} from {} to {}", piece_str, from, to);
                             self.game.input_move(from, to);
                             let valid = self.game.check_move_valid();
-                            println!("That move is {}", if valid { "valid" } else { "invalid" });
+                            println!("That move is {}", if valid { "legal" } else { "illegal" });
                             self.game = self.game.clone().do_turn();
-                            println!("It's now {}s turn", if self.game.white_turn { "white" } else { "black" });
 
                             // Move is valid if move_from is non-empty
                             let joever = if self.game.mate {

@@ -88,6 +88,10 @@ impl event::EventHandler<GameError> for  Gui {
             board_param,
         );
 
+        if let SelectMove { from, } = self.layer.get_state() {
+            highlight_square(ctx, &mut canvas, from.0, from.1);
+        }
+
         // Draw pieces
         for x in 0..8u8 {
             for y in 0..8u8 {
@@ -128,9 +132,6 @@ impl event::EventHandler<GameError> for  Gui {
         match self.layer.get_state() {
             OpponentTurn => 
                 draw_text(ctx, &mut canvas, "Opponents turn".to_string()),
-            SelectMove { from, } => {
-                highlight_square(ctx, &mut canvas, from.0, from.1);
-            },
             CheckMate(player) => {
                 draw_text(ctx, &mut canvas, format!("{:?} won!", player));
             },
