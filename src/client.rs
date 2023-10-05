@@ -24,9 +24,12 @@ impl Client {
 
     pub fn new(addr: String) -> logic::Layer {
 
+        println!("Connecting to address {}", addr);
         let stream = TcpStream::connect(addr).expect("Could not connect to server");
+        println!("Connected!");
 
         // We always wanna be white
+        // hehe
         let ctsh = CtsHand {
             server_color: protocol::Color::Black,
         };

@@ -192,11 +192,29 @@ impl logic::Interface for Server {
                     Some(cts) => match cts {
                         Cts::Move(mov) => {
 
+                            let piece = self.game.get_board()
+                                [mov.start_x][mov.start_y]
+                                .piece.piece_type.clone();
+
+                            use simonsev_chess::PieceType::*;
+                            let piece_str = match piece {
+                                Pawn => "pawn",
+                                Rook => "rook",
+                                Knight => "knight",
+                                Bishop => "bishop",
+                                Queen => "queen",
+                                King => "king",
+                                Unoccupied => "!!NONE!!",
+                            };
+
                             let from = sqstr(mov.start_x, mov.start_y);
                             let to = sqstr(mov.end_x, mov.end_y);
+                            println!("Opponent wants to move {} from {} to {}", piece_str, from, to);
                             self.game.input_move(from, to);
                             let valid = self.game.check_move_valid();
+                            println!("That move is {}", if valid { "valid" } else { "invalid" });
                             self.game = self.game.clone().do_turn();
+                            println!("It's now {}s turn", if self.game.white_turn { "white" } else { "black" });
 
                             // Move is valid if move_from is non-empty
                             let joever = if self.game.mate {
