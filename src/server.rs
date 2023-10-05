@@ -237,7 +237,11 @@ impl logic::Interface for Server {
                                 };
 
                                 self.tcp_handler.write(stc);
-                                self.state = logic::State::SelectPiece;
+                                self.state = if matches!(joever, protocol::Joever::Ongoing) {
+                                    logic::State::SelectPiece
+                                } else {
+                                    logic::State::CheckMate(self.player.other())
+                                };
                             } else {
 
                                 let stc = Stc::Error {
@@ -296,8 +300,12 @@ impl logic::Interface for Server {
                 }
             };
 
-
-            self.state = logic::State::OpponentTurn;
+            self.state = if matches!(joever, protocol::Joever::Ongoing)
+            {
+                logic::State::OpponentTurn
+            } else {
+                logic::State::CheckMate(self.player)
+            };
             self.tcp_handler.write(stc);
         } else {
             self.state = logic::State::SelectPiece;
