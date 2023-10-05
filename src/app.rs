@@ -2,6 +2,15 @@
 use crate::logic;
 use ggez::*;
 use ggez::graphics::*;
+use ggez::input::*;
+use glam::Vec2;
+
+// The pixel offset of the first square in the board texture
+const BOARD_OFFSET: u32 = 40;
+// The offset between squares in the board texture
+const SQUARE_OFFSET: u32 = 22;
+// The width/height of the board texture
+const BOARD_SIZE: u32 = 256;
 
 struct Images {
     pawn:   Image,
@@ -49,7 +58,10 @@ impl Gui {
 
 impl event::EventHandler<GameError> for  Gui {
 
-    fn update(&mut self, ctx: &mut Context) -> GameResult { Ok(()) }
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        self.layer.update();
+        Ok(())
+    }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
 
@@ -65,8 +77,217 @@ impl event::EventHandler<GameError> for  Gui {
         );
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
+        // Draw board
+        let (offset, scale) = board_transform(ctx);
+        let board_param = DrawParam::new()
+            .dest(offset)
+            .scale(scale);
+
+        canvas.draw(
+            &self.board,    
+            board_param,
+        );
+
+        // Draw pieces
+        for x in 0..8u8 {
+            for y in 0..8u8 {
+
+                match self.layer.get_piece_at(x, y) {
+                    None => (),
+                    Some(piece) => {
+
+                        use logic::{ Player::*, Piece::*, };
+
+                        let images = match piece.1 {
+                            White => &self.white,
+                            Black => &self.black,
+                        };
+
+                        let image = match piece.0 {
+                            Pawn   => &images.pawn,
+                            Rook   => &images.rook,
+                            Knight => &images.knight,
+                            Bishop => &images.bishop,
+                            Queen  => &images.queen,
+                            King   => &images.king,
+                        };
+
+                        let (offset, scale) = piece_transform(ctx, x, y, image);
+
+                        let draw_param = DrawParam::new()
+                            .dest(offset)
+                            .scale(scale);
+
+                        canvas.draw(image, draw_param);
+                    }
+                }
+            }
+        }
+
+        use logic::State::*;
+        match self.layer.get_state() {
+            OpponentTurn => 
+                draw_text(ctx, &mut canvas, "Opponents turn".to_string()),
+            SelectMove { from, } => {
+                highlight_square(ctx, &mut canvas, from.0, from.1);
+            },
+            CheckMate(player) => {
+                draw_text(ctx, &mut canvas, format!("{:?} won!", player));
+            },
+            _ => (),
+        }
+
+        canvas.finish(ctx).unwrap();
+
         Ok(())
     }
+    
+    fn mouse_button_down_event(
+        &mut self,
+        ctx: &mut Context,
+        button: mouse::MouseButton,
+        x: f32,
+        y: f32
+    ) -> GameResult {
+
+        use mouse::MouseButton::*;
+
+        match button {
+            Left => {
+                
+                let (x, y) = square_from_pos(ctx, x, y);
+
+                let valid = x >= 0 && x < 8 &&
+                    y >= 0 && y < 8;
+
+                use logic::State::*;
+                match self.layer.get_state().clone() {
+                    SelectPiece => {
+                        if valid {
+                            self.layer.select_piece((x as u8, y as u8));
+                        }
+                    },
+                    SelectMove { from: _, } => {
+                        if valid {
+                            self.layer.play_move((x as u8, y as u8));
+                        }
+                    },
+                    _ => (),
+                }
+            },
+            _ => (),
+        }
+
+        Ok(())
+    }
+}
+
+fn highlight_square(ctx: &Context, canvas: &mut Canvas, x: u8, y: u8) {
+
+    let rect = Mesh::new_rectangle(
+        ctx,
+        DrawMode::Fill(FillOptions::DEFAULT),
+        Rect::new(0.0, 0.0, SQUARE_OFFSET as f32, SQUARE_OFFSET as f32),
+        Color::from([0.3, 0.3, 0.9, 0.5])
+    ).unwrap();
+
+    let (offset, scale) = square_transform(ctx, x, y);
+    let param = DrawParam::new()
+        .dest(offset)
+        .scale(scale);
+
+    canvas.draw(&rect, param);
+}
+
+fn board_transform(ctx: &Context) -> (Vec2, Vec2) {
+
+    let (w, h) = ctx.gfx.size();
+    let s = if w > h { h } else { w };
+    let t = s / (BOARD_SIZE as f32);
+    let offset = if w > h {
+        Vec2 {
+            x: (w - h) / 2.,
+            y: 0.,
+        }
+    } else {
+        Vec2 {
+            x: 0.,
+            y: (h - w) / 2.,
+        }
+    };
+
+    (offset, Vec2::splat(t))
+}
+
+fn square_transform(ctx: &Context, x: u8, y: u8) -> (Vec2, Vec2) {
+
+    let (mut offset, scale) = board_transform(ctx);
+    offset += BOARD_OFFSET as f32 * scale;
+    offset += Vec2 {
+        x: scale.x * SQUARE_OFFSET as f32 * x as f32,
+        y: scale.y * SQUARE_OFFSET as f32 * y as f32,
+    };
+
+    (offset, scale)
+}
+
+fn square_from_pos(ctx: &Context, x: f32, y: f32) -> (i8, i8) {
+    
+    let (offset, scale) = board_transform(ctx);
+    let mut pos = Vec2 { x, y, };
+
+    pos -= offset;
+    pos /= scale;
+    pos -= Vec2::splat(BOARD_OFFSET as f32);
+    pos /= SQUARE_OFFSET as f32;
+    (pos.x as i8, pos.y as i8)
+}
+
+fn draw_text(ctx: &Context, canvas: &mut Canvas, text: String) {
+
+    let (w, h) = ctx.gfx.size();
+    let center = Vec2::new(w / 2., h / 2.);
+
+    let rect = Mesh::new_rectangle(
+        ctx,
+        DrawMode::Fill(FillOptions::DEFAULT),
+        Rect::new(0., 0., w, h),
+        Color::from([0.3, 0.3, 0.9, 0.9]),
+    ).unwrap();
+
+    canvas.draw(&rect, DrawParam::new());
+
+    let param = DrawParam::new()
+        .color(Color::from([0.9, 0.4, 0.4, 1.0]))
+        .dest(center);
+    
+    canvas.draw(
+        Text::new(text)
+            .set_font("Handjet")
+            .set_layout(TextLayout::center())
+            .set_scale(80.),
+        param,
+    );
+}
+
+fn piece_transform(
+    ctx: &Context,
+    x: u8,
+    y: u8,
+    image: &Image
+) -> (Vec2, Vec2) {
+
+    let w = image.width() as f32;
+    let h = image.height() as f32;
+
+    let (mut offset, scale) = square_transform(ctx, x, y); 
+
+    offset += Vec2 {
+        x: scale.x * (SQUARE_OFFSET as f32 - w) / 2.,
+        y: scale.y * (SQUARE_OFFSET as f32 - h) / 2.,
+    };
+
+    (offset, scale)
 }
 
 pub fn run(layer: logic::Layer) {
