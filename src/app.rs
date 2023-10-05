@@ -58,7 +58,7 @@ impl Gui {
 
 impl event::EventHandler<GameError> for  Gui {
 
-    fn update(&mut self, ctx: &mut Context) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context) -> GameResult {
         self.layer.update();
         Ok(())
     }
@@ -308,7 +308,7 @@ pub fn run(layer: logic::Layer) {
         FontData::from_path(&ctx, "/Handjet-Medium.ttf").unwrap()
     );
     
-    let mut gui = Gui::new(&ctx, layer);
+    let gui = Gui::new(&ctx, layer);
 
     event::run(ctx, event_loop, gui);
 }

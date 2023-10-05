@@ -52,7 +52,6 @@ impl Server {
         let game = backend::Game::new();
 
         // Receive handshake
-        println!("Waiting for client handshake...");
         let ctshand: CtsHand = tcp::read(&mut stream);
         println!("Client wants you to play as {:?}", ctshand.server_color);
         let (state, player) = match ctshand.server_color {
@@ -67,7 +66,7 @@ impl Server {
         };
         
         // Send handshake
-        let mut stchand = StcHand {
+        let stchand = StcHand {
 
             board: Self::convert_board(&game),
             moves: Vec::new(),
@@ -75,7 +74,6 @@ impl Server {
             features: Vec::new(),
         };
 
-        println!("Sending handshake");
         tcp::write(&mut stream, stchand);
         println!("Handshake complete!");
         
