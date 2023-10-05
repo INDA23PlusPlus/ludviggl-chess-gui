@@ -1,5 +1,4 @@
 
-# Chess Game
-* Run `cargo r` to start the game.
-* Press [R] to reset game.
-* Press [Esc] to exit.
+# Usage
+* `cargo run -- serve` to host server
+* `cargo run -- connect <addr>` to connect to address `<addr>`
