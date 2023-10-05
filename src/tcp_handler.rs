@@ -71,16 +71,6 @@ impl<R, W> TcpHandler<R, W>
         }
     }
 
-    pub fn read_blocking(&self) -> R {
-
-        loop {
-
-            if let Some(msg) = self.read() {
-                return msg;
-            }
-        }
-    }
-
     pub fn write(&self, msg: W) {
 
         self.sender.send(msg).unwrap();
@@ -93,7 +83,7 @@ impl<R, W> TcpHandler<R, W>
 
         loop {
 
-            let msg = serde_json::from_reader(&stream).unwrap();
+            let msg = read(&stream);
             sender.send(msg).unwrap();
         }
     }
@@ -106,7 +96,7 @@ impl<R, W> TcpHandler<R, W>
         loop {
 
             match receiver.try_recv() {
-                Ok(msg) => serde_json::to_writer(&stream, &msg).unwrap(),
+                Ok(msg) => write(&stream, msg),
                 Err(e) => match e {
                     mpsc::TryRecvError::Empty => (),
                     mpsc::TryRecvError::Disconnected => return (),
