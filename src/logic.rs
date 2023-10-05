@@ -9,10 +9,19 @@ pub enum State {
     CheckMate(Player),
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Player {
     White,
     Black,
+}
+
+impl Player {
+    pub fn other(&self) -> Self {
+        match *self {
+            Player::White => Player::Black,
+            Player::Black => Player::White,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
