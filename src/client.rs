@@ -92,10 +92,10 @@ impl logic::Interface for Client {
         };
 
         let cts = Cts::Move(protocol::Move {
-            start_x: from.0 as usize,
-            start_y: from.1 as usize,
-            end_x: dst.0 as usize,
-            end_y: dst.1 as usize,
+            start_x: from.1 as usize,
+            start_y: from.0 as usize,
+            end_x: dst.1 as usize,
+            end_y: dst.0 as usize,
             // We don't support promotions
             promotion: protocol::Piece::None,
         });

@@ -17,7 +17,7 @@ type ThreadResult = ();
 
 fn sqstr(x: usize, y: usize) -> String {
 
-    let a = match y {
+    let a = match x {
         0 => "A",
         1 => "B",
         2 => "C",
@@ -29,7 +29,7 @@ fn sqstr(x: usize, y: usize) -> String {
         _ => panic!(),
     };
 
-    format!("{}{}", a, x + 1)
+    format!("{}{}", a, y + 1)
 }
 
 pub struct Server {
@@ -265,8 +265,8 @@ impl logic::Interface for Server {
             _ => return,
         };
 
-        let from_str = sqstr(from.0 as usize, from.1 as usize);
-        let to_str = sqstr(dst.0 as usize, dst.1 as usize);
+        let from_str = sqstr(from.1 as usize, from.0 as usize);
+        let to_str = sqstr(dst.1 as usize, dst.0 as usize);
         self.game.input_move(from_str, to_str);
         let valid = self.game.check_move_valid();
         self.game = self.game.clone().do_turn();
